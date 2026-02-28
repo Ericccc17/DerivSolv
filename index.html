@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CANNY GOODY - AI Calculus Solver</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Segoe UI, Tahoma, sans-serif;
+  background:#0f172a;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  overflow:hidden;
+}
+
+/* FLOATING NUMBERS BACKGROUND */
+.number-bg{position:fixed;inset:0;pointer-events:none;z-index:0}
+.number{position:absolute;color:rgba(56,189,248,.25);animation:float linear infinite;font-size:16px;}
+@keyframes float{from{transform:translateY(110vh)}to{transform:translateY(-10vh)}}
+
+/* APP */
+.app{
+  background:rgba(15,23,42,.9);
+  backdrop-filter:blur(10px);
+  width:100%;
+  max-width:520px;
+  padding:20px;
+  border-radius:20px;
+  color:white;
+  z-index:1;
+  box-shadow:0 10px 40px rgba(0,0,0,.6);
+}
+
+.title{text-align:center;font-size:24px;color:#38bdf8}
+.subtitle{text-align:center;font-size:12px;opacity:.7;margin-bottom:12px}
+
+input{
+  width:100%;padding:12px;font-size:16px;
+  border-radius:8px;border:1px solid #334155;
+  background:#1e293b;color:white;margin-bottom:10px;
+}
+
+.buttons{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+
+button{
+  padding:10px;border:none;border-radius:8px;
+  background:#334155;color:white;font-weight:bold;
+  cursor:pointer;transition:.2s;
+}
+button:hover{background:#38bdf8;color:black}
+
+.solve{grid-column:span 3;background:#22c55e}
+.clear{grid-column:span 3;background:#ef4444}
+
+.result,.steps,.ai{
+  background:#020617;margin-top:10px;padding:10px;
+  border-radius:8px;font-size:14px;
+  border:1px solid #1e293b;max-height:160px;overflow:auto;
+}
+
+.toggle{text-align:right;margin-bottom:5px}
+.toggle button{
+  font-size:11px;padding:4px 7px;background:transparent;
+  border:1px solid #38bdf8;color:#38bdf8;margin-left:4px;
+}
+
+canvas{background:white;border-radius:10px;margin-top:12px;width:100%;max-height:200px}
+
+/* LIGHT MODE */
+.light{background:#e2e8f0}
+.light .app{background:white;color:#0f172a}
+.light button{background:#cbd5e1;color:#0f172a}
+.light input{background:white;color:black}
+.light .result,.light .steps,.light .ai{background:#f1f5f9;color:#0f172a}
+
+/* ROBOT */
+#robot{
+  position:fixed;
+  right:15px;
+  bottom:20px;
+  font-size:80px;
+  display:none;
+  animation:dance .5s infinite alternate;
+  filter:drop-shadow(0 0 15px #38bdf8);
+}
+@keyframes dance{
+  0%{transform:rotate(-10deg) translateY(0)}
+  50%{transform:rotate(10deg) translateY(-15px)}
+  100%{transform:rotate(-10deg) translateY(0)}
+}
+
+/* LED Eyes */
+#robot::after{
+  content:"";
+  position:absolute;
+  left:25px;
+  top:28px;
+  width:6px;
+  height:6px;
+  background:#38bdf8;
+  border-radius:50%;
+  box-shadow:20px 0 #38bdf8;
+  animation:blink 1.5s infinite;
+}
+@keyframes blink{
+  0%,90%,100%{opacity:1}
+  95%{opacity:0}
+}
+
+/* Equalizer */
+#equalizer{
+  position:fixed;
+  right:30px;
+  bottom:110px;
+  display:none;
+  display:flex;
+  gap:3px;
+}
+.eq{
+  width:5px;
+  height:15px;
+  background:#38bdf8;
+  animation:beat .4s infinite alternate;
+}
+.eq:nth-child(2){animation-delay:.1s}
+.eq:nth-child(3){animation-delay:.2s}
+.eq:nth-child(4){animation-delay:.3s}
+@keyframes beat{from{height:10px}to{height:35px}}
+</style>
+</head>
+
+<body id="body">
+
+<!-- FLOATING NUMBERS -->
+<div class="number-bg" id="number-bg"></div>
+
+<div class="app">
+  <div class="toggle">
+    <button onclick="toggleMode()">🌗</button>
+    <button onclick="toggleMusic()">🎵</button>
+    <button onclick="startVoice()">🎙</button>
+    <button onclick="speakResult()">🔊</button>
+  </div>
+
+  <h1 class="title">CANNY GOODY</h1>
+  <div class="subtitle">AI Calculus Solver • FreddyyGroup</div>
+
+  <input id="display" placeholder="Enter function e.g. 3x^2 + sin(x)">
+  <input id="order" type="number" value="1">
+
+  <div class="buttons">
+    <!-- Function buttons -->
+    <button onclick="add('sin(')">sin</button>
+    <button onclick="add('cos(')">cos</button>
+    <button onclick="add('tan(')">tan</button>
+    <button onclick="add('ln(')">ln</button>
+    <button onclick="add('sqrt(')">√</button>
+    <button onclick="add('^')">^</button>
+
+    <!-- Numbers -->
+    <button onclick="add('7')">7</button>
+    <button onclick="add('8')">8</button>
+    <button onclick="add('9')">9</button>
+    <button onclick="add('+')">+</button>
+    <button onclick="add('-')">−</button>
+    <button onclick="add('*')">×</button>
+
+    <button onclick="add('4')">4</button>
+    <button onclick="add('5')">5</button>
+    <button onclick="add('6')">6</button>
+    <button onclick="add('/')">÷</button>
+    <button onclick="add('x')">x</button>
+    <button onclick="add('(')">(</button>
+
+    <button onclick="add('1')">1</button>
+    <button onclick="add('2')">2</button>
+    <button onclick="add('3')">3</button>
+    <button onclick="add('0')">0</button>
+    <button onclick="add(')')">)</button>
+    <button onclick="add('PI')">π</button>
+
+    <button class="solve" onclick="solve()">SOLVE</button>
+    <button class="clear" onclick="clearAll()">CLEAR</button>
+  </div>
+
+  <div class="result" id="result">Result:</div>
+  <div class="steps" id="steps">Steps:</div>
+  <div class="ai" id="ai">🤖 AI Explanation Mode:</div>
+
+  <canvas id="graph"></canvas>
+</div>
+
+<!-- ROBOT + EQUALIZER -->
+<div id="robot">🤖</div>
+<div id="equalizer">
+  <div class="eq"></div><div class="eq"></div>
+  <div class="eq"></div><div class="eq"></div>
+</div>
+
+<audio id="bgMusic" loop>
+  <source src="music.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+// FLOATING NUMBERS SCRIPT
+const bg=document.getElementById("number-bg");
+const symbols=["0","1","2","x","+","^","sin","cos","ln","π","∫","dy/dx"];
+for(let i=0;i<70;i++){
+  let s=document.createElement("span");
+  s.className="number";
+  s.textContent=symbols[Math.floor(Math.random()*symbols.length)];
+  s.style.left=Math.random()*100+"vw";
+  s.style.animationDuration=(6+Math.random()*12)+"s";
+  s.style.fontSize=(12+Math.random()*22)+"px";
+  s.style.opacity=Math.random();
+  bg.appendChild(s);
+}
+
+// CALCULUS ELEMENTS
+const display=document.getElementById("display");
+const order=document.getElementById("order");
+const result=document.getElementById("result");
+const steps=document.getElementById("steps");
+const ai=document.getElementById("ai");
+const music=document.getElementById("bgMusic");
+const robot=document.getElementById("robot");
+const eq=document.getElementById("equalizer");
+let chart;
+
+function add(v){display.value+=v}
+function clearAll(){display.value="";steps.innerHTML="";ai.innerHTML="";if(chart)chart.destroy()}
+function toggleMode(){body.classList.toggle("light")}
+
+function toggleMusic(){
+  if(music.paused){
+    music.play();
+    robot.style.display="block";
+    eq.style.display="flex";
+  }else{
+    music.pause();
+    robot.style.display="none";
+    eq.style.display="none";
+  }
+}
+
+function ordinal(n){if(n%100>=11&&n%100<=13)return n+"th";return n%10==1?n+"st":n%10==2?n+"nd":n%10==3?n+"rd":n+"th"}
+
+// SOLVE WITH STEP-BY-STEP AI EXPLANATION
+function solve() {
+  try {
+    let expr = display.value;
+    let n = parseInt(order.value)||1;
+    let cur = expr;
+    let stepsText = "";
+    let aiText = "🤖 AI Explanation:<br>";
+
+    for (let i=1;i<=n;i++){
+      let prev=cur;
+      let derived=math.derivative(prev,"x");
+      cur=derived.toString();
+
+      // Detect rule used
+      let rule="Basic Differentiation Rule";
+      if(prev.includes("sin")||prev.includes("cos")||prev.includes("tan")) rule="Trigonometric Rule";
+      else if(prev.includes("^")) rule="Power / Chain Rule";
+      else if(prev.includes("ln")||prev.includes("log")) rule="Logarithmic Rule";
+      else if(prev.includes("*")&&prev.includes("x")) rule="Product Rule";
+
+      stepsText+=`Step ${i}: ${ordinal(i)} derivative → <b>${cur}</b><br>`;
+      aiText+=`Step ${i}: Differentiate (${prev}) → ${cur} (${rule})<br>`;
+    }
+
+    result.innerHTML=`Final (${ordinal(n)}): <b style="color:#38bdf8">${cur}</b>`;
+    steps.innerHTML=stepsText;
+    ai.innerHTML=aiText;
+
+    drawGraph(expr,cur);
+
+  } catch {
+    result.innerHTML="⚠ Invalid Expression";
+    ai.innerHTML="";
+  }
+}
+
+function drawGraph(f,df){
+ let xs=[],ys=[],dys=[];
+ for(let x=-5;x<=5;x+=0.2){
+   xs.push(x.toFixed(1));
+   ys.push(math.evaluate(f,{x}));
+   dys.push(math.evaluate(df,{x}));
+ }
+ let ctx=document.getElementById("graph").getContext("2d");
+ if(chart)chart.destroy();
+ chart=new Chart(ctx,{
+   type:'line',
+   data:{labels:xs,datasets:[
+     {label:'f(x)',data:ys,borderColor:'#2563eb',borderWidth:2,pointRadius:0},
+     {label:"f'(x)",data:dys,borderColor:'#dc2626',borderWidth:2,pointRadius:0}
+   ]},
+   options:{responsive:true}
+ });
+}
+
+// VOICE OUTPUT
+function speakResult(){speechSynthesis.speak(new SpeechSynthesisUtterance(result.innerText))}
+
+// VOICE INPUT
+function startVoice(){
+ if(!('webkitSpeechRecognition'in window)){alert("Voice not supported");return}
+ let rec=new webkitSpeechRecognition();
+ rec.lang="en-US"; rec.start();
+ result.innerHTML="🎙 Listening...";
+ rec.onresult=e=>{
+   let t=e.results[0][0].transcript.toLowerCase();
+   t=t.replace(/plus/g,"+").replace(/minus/g,"-")
+        .replace(/times|multiply/g,"*").replace(/divide/g,"/")
+        .replace(/power|raised to/g,"^")
+        .replace(/sine/g,"sin").replace(/cosine/g,"cos")
+        .replace(/tangent/g,"tan");
+   display.value=t;
+   result.innerHTML="🎧 Heard: "+t;
+ };
+}
+</script>
+
+</body>
+</html>
